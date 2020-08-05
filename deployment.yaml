@@ -1,0 +1,50 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  labels:
+    k8s-app: java-service
+  name: java-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: java-service
+  template:
+    metadata:
+      labels:
+        k8s-app: java-service
+      name: java-service
+    spec:
+      containers:
+        - name: java-service
+          image: __imagename__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: web
+              protocol: TCP
+      serviceAccountName: java-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: java-service
+  name: java-service
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: java-service
+  name: java-service
+spec:
+  ports:
+    - protocol: TCP
+      name: web
+      port: 8081
+      targetPort: 8081
+  type: NodePort
+  selector:
+    k8s-app: java-service

@@ -1,0 +1,108 @@
+pipeline {
+   environment {
+    registry = "192.168.10.60"
+    project_name = "/cicd"
+    app_name = "/java-service"
+    registryCredential = 'harbor'
+    image_name= "${registry}" + "${project_name}" + "${app_name}" +':'+"${BUILD_NUMBER}"
+  }
+  agent {
+    kubernetes {
+      //defaultContainer 'wanshaoyuan/jnlp-slave:3.27-1-alpine' 1
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: some-label-value
+spec:
+  containers:
+  - name: jnlp
+    image: 'wanshaoyuan/jnlp-slave:3.27-1-alpine'
+    imagePullPolicy: IfNotPresent
+    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+  - env:
+    - name: MAVEN_OPTS
+      value: "-Dmaven.repo.local=/home/jenkins"   #缓存地址
+    name: maven
+    image: maven:3.6.3-jdk-8
+    imagePullPolicy: IfNotPresent
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins"
+      name: "volume-2"
+      readOnly: false
+  - name : docker
+    image: wanshaoyuan/docker:19.03.2
+    imagePullPolicy: IfNotPresent
+    tty: true
+    volumeMounts:
+    - name: repo-docker-sock
+      mountPath: /var/run/docker.sock
+  - name: kubectl
+    imagePullPolicy: IfNotPresent
+    image: wanshaoyuan/jenkins-tools:v1.0
+    tty: true
+    volumeMounts:
+    - mountPath: "/root/.kube"
+      name: "volume-0"
+      readOnly: false
+  volumes:
+  - name: "volume-1"
+    hostPath:
+     path: /etc/hosts
+  - name: "volume-2"
+    hostPath:
+     path: /home/jenkins
+  - name: "volume-0"
+    secret:
+      secretName: "kubeconfig"
+  - name: repo-docker-sock
+    hostPath:
+     path: /var/run/docker.sock
+"""
+    }
+  }
+  options {
+    timeout(time: 1, unit: 'HOURS')
+  }
+  stages {
+   stage('clone code') {
+     steps {
+         git credentialsId: 'gitlab-cc', url: 'http://192.168.10.45:81/root/java-service.git'
+        }
+    }
+   stage('maven build'){
+      steps{
+        container('maven'){
+         script{
+             sh "mvn clean package  -DskipTests  --settings=./settings.xml"
+            }
+        }
+       }
+    }
+    stage('image build ') {
+      steps {
+        container('docker') {
+         script {
+          docker.withRegistry( 'http://192.168.10.60', registryCredential ) {
+             def dockerImage=docker.build "${image_name}"
+             dockerImage.push()
+         }
+        }
+      }
+    }
+   }
+
+    stage('deploy'){
+      steps{
+        container('kubectl') {
+          sh 'sed -i "s#__imagename__#${image_name}#g" deployment.yaml'
+          sh 'kubectl apply -f deployment.yaml'
+          }
+       }
+    }
+   }
+ }
