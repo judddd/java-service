@@ -145,15 +145,19 @@ under the License.
    | repository, to be used as an alternate download site. The mirror site will be the preferred
    | server for that repository.
    |-->
-  <mirrors>
+<mirrors>
+    <!--
+     | Specifies a repository mirror site to use instead of a given repository. The repository that
+     | this mirror serves has an ID that matches the mirrorOf element of this mirror. IDs are used
+     | for inheritance and direct lookup purposes, and must be unique across the set of mirrors.
+     | -->
     <mirror>
-      <id>aliyunrepo</id>
-      <mirrorOf>aliyunrepo</mirrorOf>
-      <name>aliyunrepo.</name>
-      <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
-    </mirror>
+      <id>alimaven</id>
+      <mirrorOf>central</mirrorOf>
+      <name>aliyun maven</name>
+      <url>http://maven.aliyun.com/nexus/content/repositories/central/</url>    
+    </mirror>   
   </mirrors>
-
   <!-- profiles
    | This is a list of profiles which can be activated in a variety of ways, and which can modify
    | the build process. Profiles provided in the settings.xml are intended to provide local machine-
